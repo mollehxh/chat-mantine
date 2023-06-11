@@ -10,10 +10,18 @@ import {
   sendMessage,
 } from '../../shared/api';
 import { debug, reset } from 'patronum';
+import { createSocket } from '../../shared/lib/create-socket';
 
 export const currentRoute = routes.main;
 export const authorizedRoute = chainAuthorized(currentRoute, {
   otherwise: routes.signIn.open,
+});
+
+const socket = createSocket('');
+
+sample({
+  clock: authorizedRoute.opened,
+  target: socket.connect,
 });
 
 export const messageValueChanged = createEvent<string>();

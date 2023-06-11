@@ -1,8 +1,16 @@
+const { Server } = require('socket.io');
+const http = require('http');
+const { default: axios } = require('axios');
+
 const express = require('express');
 const cors = require('cors');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { Sequelize, DataTypes, Op } = require('sequelize');
+
+const app = express();
+const server = http.createServer(app);
+const io = new Server(server, { cors: { origin: '*' } });
 
 // Параметры подключения к базе данных
 const sequelize = new Sequelize('chattie', 'root', 'root', {
@@ -406,109 +414,109 @@ class UserController {
     }
   }
 
-  static async getDialogMessages(req, res) {
-    try {
-      const { userId } = req.query;
-      const { conversationId } = req.params;
+  // static async getDialogMessages(req, res) {
+  //   try {
+  //     const { userId } = req.query;
+  //     const { conversationId } = req.params;
 
-      // Получение диалога
-      const conversation = await Conversation.findOne({
-        where: {
-          id: conversationId,
-          [Op.or]: [{ user1Id: userId }, { user2Id: userId }],
-        },
-        include: [
-          {
-            model: User,
-            as: 'user1',
-            attributes: ['id', 'username', 'email'],
-          },
-          {
-            model: User,
-            as: 'user2',
-            attributes: ['id', 'username', 'email'],
-          },
-          {
-            model: Message,
-            attributes: ['id', 'content', 'sentAt'],
-            include: [
-              {
-                model: User,
-                as: 'sender',
-                attributes: ['id', 'username', 'email'],
-              },
-              {
-                model: User,
-                as: 'receiver',
-                attributes: ['id', 'username', 'email'],
-              },
-            ],
-            order: [['sentAt', 'ASC']],
-          },
-        ],
-        order: [[Message, 'sentAt', 'ASC']],
-      });
+  //     // Получение диалога
+  //     const conversation = await Conversation.findOne({
+  //       where: {
+  //         id: conversationId,
+  //         [Op.or]: [{ user1Id: userId }, { user2Id: userId }],
+  //       },
+  //       include: [
+  //         {
+  //           model: User,
+  //           as: 'user1',
+  //           attributes: ['id', 'username', 'email'],
+  //         },
+  //         {
+  //           model: User,
+  //           as: 'user2',
+  //           attributes: ['id', 'username', 'email'],
+  //         },
+  //         {
+  //           model: Message,
+  //           attributes: ['id', 'content', 'sentAt'],
+  //           include: [
+  //             {
+  //               model: User,
+  //               as: 'sender',
+  //               attributes: ['id', 'username', 'email'],
+  //             },
+  //             {
+  //               model: User,
+  //               as: 'receiver',
+  //               attributes: ['id', 'username', 'email'],
+  //             },
+  //           ],
+  //           order: [['sentAt', 'ASC']],
+  //         },
+  //       ],
+  //       order: [[Message, 'sentAt', 'ASC']],
+  //     });
 
-      // Проверка, есть ли такой диалог
-      if (!conversation) {
-        return res.status(404).json({ message: 'Диалог не найден' });
-      }
+  //     // Проверка, есть ли такой диалог
+  //     if (!conversation) {
+  //       return res.status(404).json({ message: 'Диалог не найден' });
+  //     }
 
-      // Формирование результата
-      const { id, user1, user2, Messages } = conversation;
-      const result = {
-        id,
-        user: userId == user1.id ? user2 : user1,
-        messages: Messages,
-      };
+  //     // Формирование результата
+  //     const { id, user1, user2, Messages } = conversation;
+  //     const result = {
+  //       id,
+  //       user: userId == user1.id ? user2 : user1,
+  //       messages: Messages,
+  //     };
 
-      res.json(result);
-    } catch (error) {
-      console.error('Ошибка при получении информации о диалоге:', error);
-      res.status(500).json({ message: 'Внутренняя ошибка сервера' });
-    }
-  }
+  //     res.json(result);
+  //   } catch (error) {
+  //     console.error('Ошибка при получении информации о диалоге:', error);
+  //     res.status(500).json({ message: 'Внутренняя ошибка сервера' });
+  //   }
+  // }
 
-  static async sendMessage(req, res) {
-    try {
-      const { conversationId, senderId, receiverId, content } = req.body;
+  // static async sendMessage(req, res) {
+  //   try {
+  //     const { conversationId, senderId, receiverId, content } = req.body;
 
-      // Создание нового сообщения
-      const message = await Message.create({
-        conversationId,
-        senderId,
-        receiverId,
-        content,
-        sentAt: new Date(),
-      });
+  //     // Создание нового сообщения
+  //     const message = await Message.create({
+  //       conversationId,
+  //       senderId,
+  //       receiverId,
+  //       content,
+  //       sentAt: new Date(),
+  //     });
 
-      // Получение информации о диалоге
-      const conversation = await Conversation.findByPk(conversationId, {
-        include: [
-          {
-            model: User,
-            as: 'user1',
-          },
-          {
-            model: User,
-            as: 'user2',
-          },
-        ],
-      });
+  //     // Получение информации о диалоге
+  //     const conversation = await Conversation.findByPk(conversationId, {
+  //       include: [
+  //         {
+  //           model: User,
+  //           as: 'user1',
+  //         },
+  //         {
+  //           model: User,
+  //           as: 'user2',
+  //         },
+  //       ],
+  //     });
 
-      // Отправка успешного ответа с информацией о сообщении и диалоге
-      res.json({
-        message,
-        conversation,
-      });
-    } catch (error) {
-      // Обработка ошибки
-      console.error('Error sending message:', error);
-      res
-        .status(500)
-        .json({ error: 'An error occurred while sending the message.' });
-    }
-  }
+  //     // Отправка успешного ответа с информацией о сообщении и диалоге
+  //     res.json({
+  //       message,
+  //       conversation,
+  //     });
+  //   } catch (error) {
+  //     // Обработка ошибки
+  //     console.error('Error sending message:', error);
+  //     res
+  //       .status(500)
+  //       .json({ error: 'An error occurred while sending the message.' });
+  //   }
+  // }
 
   // =============
   // ======
@@ -681,7 +689,6 @@ class UserController {
 }
 const PORT = 5000;
 
-const app = express();
 app.use(cors());
 app.use(express.json());
 
@@ -693,13 +700,70 @@ app.post('/login', UserController.login);
 app.get('/session', UserController.getSession);
 app.get('/users/search', UserController.searchUsers);
 app.get('/conversations', UserController.getConversations);
-app.get('/conversations/:conversationId', UserController.getDialogMessages);
+// app.get('/conversations/:conversationId', UserController.getDialogMessages);
 app.get('/conversations2', UserController.getDialogMessages2);
-app.post('/messages', UserController.sendMessage);
+// app.post('/messages', UserController.sendMessage);
 app.post('/messages2', UserController.sendMessage2);
 app.get('/users/:userId/dialog-contacts', UserController.getDialogContacts);
 
+// Обработка сокетов
+io.on('connection', (socket) => {
+  socket.on('joinConversation', async ({ roomId, userId }) => {
+    roomUsers.get(socket.id).roomId = roomId;
+    roomUsers.get(socket.id).userId = userId;
+
+    try {
+      const roomMember = await RoomMember.create({
+        room_id: roomId,
+        user_id: userId,
+      });
+      socket.join(roomUsers.get(socket.id).roomId);
+    } catch (error) {
+      console.error(error);
+    }
+  });
+
+  socket.on('sendMessage', async ({ roomId, userId, message }) => {
+    try {
+      const createdMessage = await Message.create({
+        user_id: userId,
+        message_text: message,
+      });
+
+      await createRoomMessage(createdMessage, roomId);
+
+      const user = await User.findByPk(userId);
+
+      io.to(roomId).emit('message', {
+        messageId: createdMessage.message_id,
+        username: user.username,
+        avatar: user.avatar,
+        text: createdMessage.message_text,
+        createdAt: createdMessage.createdAt,
+      });
+    } catch (error) {
+      console.error(error);
+    }
+  });
+
+  socket.on('disconnect', async () => {
+    try {
+      await RoomMember.destroy({
+        where: {
+          room_id: roomUsers.get(socket.id).roomId,
+          user_id: roomUsers.get(socket.id).userId,
+        },
+      });
+      socket.leave(roomUsers.get(socket.id).roomId);
+
+      roomUsers.delete(socket.id);
+    } catch (error) {
+      console.error(error);
+    }
+  });
+});
+
 // Запуск сервера
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`Сервер запущен на порту ${PORT}`);
 });
