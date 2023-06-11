@@ -3,8 +3,6 @@ import { useRef, useState } from 'react';
 import {
   ActionIcon,
   AppShell,
-  Aside,
-  Burger,
   Footer,
   Header,
   Indicator,
@@ -24,20 +22,14 @@ import {
   Space,
   Menu,
   Modal,
-  Select,
   Switch,
-  FileButton,
   Card,
-  Badge,
-  Center,
 } from '@mantine/core';
 
 import {
   IconSearch,
   IconSend,
-  IconPaperclip,
   IconDotsVertical,
-  IconLayoutSidebarRight,
   IconMenu2,
   IconSettings,
   IconLogout,
@@ -45,7 +37,6 @@ import {
   IconSun,
   IconBell,
   IconBellOff,
-  IconWorld,
   IconMoon,
   IconArrowNarrowDown,
   IconArrowNarrowLeft,
@@ -60,7 +51,6 @@ import {
   $messageValue,
   $searchResults,
   $searchValue,
-  $selectedConversation,
   conversationClicked,
   messageValueChanged,
   searchValueChanged,
@@ -91,7 +81,7 @@ function Aform() {
   );
 }
 
-function AppShellDemo({ changeAuth }: { changeAuth: any }) {
+function AppShellDemo() {
   const theme = useMantineTheme();
   const [opened, setOpened] = useState(true);
   const [opened2, setOpened2] = useState(false);
@@ -298,19 +288,6 @@ function AppShellDemo({ changeAuth }: { changeAuth: any }) {
         header={
           interlocutor && (
             <Header height={{ base: 70, md: 70 }} px="md">
-              {/* <MediaQuery largerThan="sm" styles={{ display: 'none' }}>
-                  </MediaQuery> */}
-              {/* <Burger
-                    opened={opened}
-                    onClick={() => setOpened((o) => !o)}
-                    size="sm"
-                    color={theme.colors.gray[6]}
-                    mr="xl"
-                  /> */}
-              {/* <ActionIcon>
-                    <IconArrowNarrowLeft />
-                  </ActionIcon> */}
-
               <Flex align="center" h="100%" justify="space-between">
                 <MediaQuery largerThan="sm" styles={{ display: 'none' }}>
                   <ActionIcon onClick={() => setOpened((o) => !o)}>
@@ -374,7 +351,7 @@ function AppShellDemo({ changeAuth }: { changeAuth: any }) {
   );
 }
 
-const Message = ({ isMe, content, loading }: any) => {
+const Message = ({ isMe, content }: any) => {
   const theme = useMantineTheme();
 
   return (
@@ -481,34 +458,5 @@ export function User({
 }
 
 export const MainPage = () => {
-  return (
-    <AppShellDemo changeAuth={() => {}} />
-    // <AppShell
-    //   padding="md"
-    //   navbar={
-    //     <Navbar width={{ base: 300 }} p="xs">
-    //       {/* Navbar content */}
-    //       <User />
-    //       <MenuWrapper target={<User online />} />
-    //       <User />
-    //     </Navbar>
-    //   }
-    //   header={
-    //     <Header height={60} p="xs">
-    //       {/* Header content */}
-    //       <TextInput />
-    //     </Header>
-    //   }
-    //   styles={(theme) => ({
-    //     main: {
-    //       backgroundColor:
-    //         theme.colorScheme === 'dark'
-    //           ? theme.colors.dark[8]
-    //           : theme.colors.gray[0],
-    //     },
-    //   })}
-    // >
-    //   {/* Your application here */}
-    // </AppShell>
-  );
+  return <AppShellDemo />;
 };
