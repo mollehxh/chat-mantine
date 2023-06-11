@@ -211,7 +211,7 @@ function AppShellDemo({ changeAuth }: { changeAuth: any }) {
                   </Menu.Target>
 
                   <Menu.Dropdown>
-                    <Menu.Label>Пользователь</Menu.Label>
+                    <Menu.Label>{session?.username}</Menu.Label>
                     <Menu.Item
                       icon={<IconUser size={14} />}
                       onClick={() => setOpened(true)}
