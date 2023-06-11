@@ -64,11 +64,7 @@ export async function searchUsers(username: string) {
 }
 
 export async function getConversations(userId: string) {
-  const response = await api.get('/conversations', {
-    params: {
-      userId,
-    },
-  });
+  const response = await api.get(`users/${userId}/dialog-contacts`);
   return response.data;
 }
 export async function getConversationById({
@@ -78,20 +74,22 @@ export async function getConversationById({
   userId: string;
   conversationId: string;
 }) {
-  const response = await api.get(`/conversations/${conversationId}`, {
-    params: {
-      userId,
-    },
-  });
+  const response = await api.get(
+    `/conversations2?userId${userId}&interlocutorId=${conversationId}`,
+    {
+      params: {
+        userId,
+      },
+    }
+  );
   return response.data;
 }
 
 export async function sendMessage(data: {
-  conversationId: number;
   senderId: number;
   receiverId: number;
   content: string;
 }) {
-  const response = await api.post('/messages', data);
+  const response = await api.post('/messages2', data);
   return response.data;
 }

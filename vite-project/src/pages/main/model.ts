@@ -116,4 +116,4 @@ sample({
   target: $selectedConversation,
 });
 
-debug($conversationMessages);
+debug($searchResults);

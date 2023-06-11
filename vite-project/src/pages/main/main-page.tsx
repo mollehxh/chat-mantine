@@ -28,6 +28,8 @@ import {
   Switch,
   FileButton,
   Card,
+  Badge,
+  Center,
 } from '@mantine/core';
 
 import {
@@ -46,6 +48,8 @@ import {
   IconWorld,
   IconMoon,
   IconArrowNarrowDown,
+  IconArrowNarrowLeft,
+  IconHandStop,
 } from '@tabler/icons-react';
 import { $user, signOut } from '../../shared/session/model';
 import { useUnit } from 'effector-react';
@@ -68,25 +72,15 @@ function Aform() {
   return (
     <form>
       <Stack spacing="md">
-        <Select
-          icon={<IconWorld size="1.25rem" />}
-          label="Your language"
-          placeholder="Pick language"
-          data={[
-            { value: 'ru', label: 'Russian' },
-            { value: 'eng', label: 'English' },
-          ]}
-        />
-
         <Switch
-          label="Dark theme"
+          label="Темная тема"
           color="teal"
           onLabel={<IconMoon size="1rem" stroke={2.5} />}
           offLabel={<IconSun size="1rem" stroke={2.5} />}
           size="md"
         />
         <Switch
-          label="Notifications"
+          label="Уведомления"
           color="teal"
           onLabel={<IconBell size="1rem" stroke={2.5} />}
           offLabel={<IconBellOff size="1rem" stroke={2.5} />}
@@ -99,42 +93,56 @@ function Aform() {
 
 function AppShellDemo({ changeAuth }: { changeAuth: any }) {
   const theme = useMantineTheme();
-  const [opened, setOpened] = useState(false);
+  const [opened, setOpened] = useState(true);
   const [opened2, setOpened2] = useState(false);
   const session = useUnit($user);
   const messageValue = useUnit($messageValue);
+  const interlocutor = useUnit($interlocutor);
+  console.log(interlocutor);
 
   const searchValue = useUnit($searchValue);
-  const searchResults = useList($searchResults, ({ username }) => (
-    <User name={username} />
-  ));
-  const conversations = useList($conversations, ({ id, user, lastMessage }) => (
-    <span onClick={() => conversationClicked(String(id))}>
-      <User
-        name={user.username}
-        sub={
-          `${
-            lastMessage.sender.id === session!.id
-              ? 'Вы'
-              : lastMessage.sender.username
-          }: ` + lastMessage.content
-        }
-      />
-    </span>
-  ));
+  const searchResults = useList($searchResults, {
+    fn: ({ id, username }) => (
+      <span
+        onClick={() => {
+          conversationClicked(String(id));
+          setOpened(() => false);
+        }}
+      >
+        <User name={username} selected={interlocutor?.id == id} />
+      </span>
+    ),
+    keys: [interlocutor],
+  });
+  const conversations = useList($conversations, {
+    fn: ({ id, username, lastMessage }: any) => (
+      <span
+        onClick={() => {
+          conversationClicked(String(id));
+          setOpened(() => false);
+        }}
+      >
+        <User
+          name={username}
+          sub={lastMessage.content}
+          selected={interlocutor?.id == id}
+        />
+      </span>
+    ),
+    keys: [interlocutor],
+  });
   const conversationMessages = useList(
     $conversationMessages,
     ({ content, sender }: any) => (
       <Message content={content} isMe={session?.id === sender.id} />
     )
   );
-  const interlocutor = useUnit($interlocutor);
 
   const viewport = useRef<HTMLDivElement>(null);
 
   return (
     <>
-      <Modal
+      {/* <Modal
         opened={opened}
         onClose={() => setOpened(false)}
         title="Proflie"
@@ -148,12 +156,12 @@ function AppShellDemo({ changeAuth }: { changeAuth: any }) {
         }}
         centered
       >
-        {/* Modal content */}
-      </Modal>
+        
+      </Modal> */}
       <Modal
         opened={opened2}
         onClose={() => setOpened2(false)}
-        title="Settings"
+        title="Настройки"
         overlayProps={{
           color:
             theme.colorScheme === 'dark'
@@ -186,9 +194,12 @@ function AppShellDemo({ changeAuth }: { changeAuth: any }) {
           <Navbar
             px="md"
             pt="md"
+            sx={{
+              zIndex: 200,
+            }}
             hiddenBreakpoint="sm"
             hidden={!opened}
-            width={{ sm: 200, lg: 300 }}
+            width={{ sm: 300, lg: 300 }}
           >
             <Navbar.Section>
               <Flex justify="space-between" align="center" gap="sm">
@@ -200,30 +211,30 @@ function AppShellDemo({ changeAuth }: { changeAuth: any }) {
                   </Menu.Target>
 
                   <Menu.Dropdown>
-                    <Menu.Label>User</Menu.Label>
+                    <Menu.Label>Пользователь</Menu.Label>
                     <Menu.Item
                       icon={<IconUser size={14} />}
                       onClick={() => setOpened(true)}
                     >
-                      Profile
+                      Профиль
                     </Menu.Item>
                     <Menu.Item
                       icon={<IconSettings size={14} />}
                       onClick={() => setOpened2(true)}
                     >
-                      Settings
+                      Настройки
                     </Menu.Item>
 
                     <Menu.Divider />
 
-                    <Menu.Label>Danger zone</Menu.Label>
+                    <Menu.Label>Опасная зона</Menu.Label>
 
                     <Menu.Item
                       color="red"
                       icon={<IconLogout size={14} />}
                       onClick={() => signOut()}
                     >
-                      Sign out
+                      Выход
                     </Menu.Item>
                   </Menu.Dropdown>
                 </Menu>
@@ -234,7 +245,7 @@ function AppShellDemo({ changeAuth }: { changeAuth: any }) {
                   onChange={(event) =>
                     searchValueChanged(event.currentTarget.value)
                   }
-                  placeholder="Search"
+                  placeholder="Поиск"
                   icon={<IconSearch size="1.25rem" />}
                 />
               </Flex>
@@ -269,7 +280,7 @@ function AppShellDemo({ changeAuth }: { changeAuth: any }) {
                     onChange={(event) =>
                       messageValueChanged(event.currentTarget.value)
                     }
-                    placeholder="Write a message..."
+                    placeholder="Введите сообщение..."
                   />
                   <ActionIcon
                     size="lg"
@@ -285,38 +296,49 @@ function AppShellDemo({ changeAuth }: { changeAuth: any }) {
           </>
         }
         header={
-          <>
-            {interlocutor && (
-              <Header height={{ base: 50, md: 70 }} p="md">
-                <MediaQuery largerThan="sm" styles={{ display: 'none' }}>
-                  <Burger
+          interlocutor && (
+            <Header height={{ base: 70, md: 70 }} px="md">
+              {/* <MediaQuery largerThan="sm" styles={{ display: 'none' }}>
+                  </MediaQuery> */}
+              {/* <Burger
                     opened={opened}
                     onClick={() => setOpened((o) => !o)}
                     size="sm"
                     color={theme.colors.gray[6]}
                     mr="xl"
-                  />
+                  /> */}
+              {/* <ActionIcon>
+                    <IconArrowNarrowLeft />
+                  </ActionIcon> */}
+
+              <Flex align="center" h="100%" justify="space-between">
+                <MediaQuery largerThan="sm" styles={{ display: 'none' }}>
+                  <ActionIcon onClick={() => setOpened((o) => !o)}>
+                    <IconArrowNarrowLeft />
+                  </ActionIcon>
                 </MediaQuery>
+                <Text size="sm" weight={500}>
+                  {interlocutor?.username}
+                </Text>
 
-                <Flex align="center" justify="space-between">
-                  <Box>
-                    <Text size="sm" weight={500}>
-                      {interlocutor.username}
-                    </Text>
-                    <Text color="dimmed" size="xs">
-                      ahorsefighter@gmail.com
-                    </Text>
-                  </Box>
+                <Group>
+                  <Menu position="bottom-end" shadow="md" withArrow width={200}>
+                    <Menu.Target>
+                      <ActionIcon>
+                        <IconDotsVertical size="1.125rem" />
+                      </ActionIcon>
+                    </Menu.Target>
 
-                  <Group>
-                    <ActionIcon>
-                      <IconDotsVertical size="1.125rem" />
-                    </ActionIcon>
-                  </Group>
-                </Flex>
-              </Header>
-            )}
-          </>
+                    <Menu.Dropdown>
+                      <Menu.Item color="red" icon={<IconHandStop size={14} />}>
+                        Заблокировать
+                      </Menu.Item>
+                    </Menu.Dropdown>
+                  </Menu>
+                </Group>
+              </Flex>
+            </Header>
+          )
         }
       >
         {interlocutor && (
@@ -346,52 +368,7 @@ function AppShellDemo({ changeAuth }: { changeAuth: any }) {
           viewportRef={viewport}
         >
           {conversationMessages}
-          {/* <Message content="Hello" isMe />
-          <Message content="Hello" />
-          <Message content="How are you?" isMe />
-          <Message content="Мне норм, а ты как? слышал ты устал жить?" />
-          <Message
-            content="Совсем придурок? Давай прекращай варить кашу, нам надо топоры затачивать что бы получать больше чем кто либо из врозлхыл, они же хотели онлайн играть в гта но никогда не пробовали котлеты с мазиком"
-            isMe
-          />
-
-          <Message content="Hello" isMe />
-          <Message content="Hello" />
-          <Message content="How are you?" isMe />
-          <Message content="Мне норм, а ты как? слышал ты устал жить?" />
-          <Message
-            content="Совсем придурок? Давай прекращай варить кашу, нам надо топоры затачивать что бы получать больше чем кто либо из врозлхыл, они же хотели онлайн играть в гта но никогда не пробовали котлеты с мазиком"
-            isMe
-          />
-          <Message content="Hello" isMe />
-          <Message content="Hello" />
-          <Message content="How are you?" isMe />
-          <Message content="Мне норм, а ты как? слышал ты устал жить?" />
-          <Message
-            content="Совсем придурок? Давай прекращай варить кашу, нам надо топоры затачивать что бы получать больше чем кто либо из врозлхыл, они же хотели онлайн играть в гта но никогда не пробовали котлеты с мазиком"
-            isMe
-          />
-          <Message content="Hello" />
-          <Message content="Hello" isMe />
-          <Message content="Hello" />
-          <Message content="How are you?" isMe />
-          <Message content="Мне норм, а ты как? слышал ты устал жить?" />
-          <Message
-            content="Совсем придурок? Давай прекращай варить кашу, нам надо топоры затачивать что бы получать больше чем кто либо из врозлхыл, они же хотели онлайн играть в гта но никогда не пробовали котлеты с мазиком"
-            isMe
-          />
-          <Message content="Hello" />
-          <Message content="Hello" isMe />
-          <Message content="Hello" />
-          <Message content="How are you?" isMe />
-          <Message content="Мне норм, а ты как? слышал ты устал жить?" />
-          <Message
-            content="Совсем придурок? Давай прекращай варить кашу, нам надо топоры затачивать что бы получать больше чем кто либо из врозлхыл, они же хотели онлайн играть в гта но никогда не пробовали котлеты с мазиком"
-            isMe
-          />
-          <Message content="Hello" /> */}
         </ScrollArea>
-        {/* <Text>Resize app to see responsive navbar in action</Text> */}
       </AppShell>
     </>
   );
@@ -436,19 +413,27 @@ export function User({
   sub,
   online,
   right,
+  selected,
 }: {
   name?: any;
   sub?: any;
   online?: boolean;
   right?: any;
+  selected?: boolean;
 }) {
   const theme = useMantineTheme();
 
   return (
     <UnstyledButton
+      w={{
+        lg: '267px',
+      }}
       sx={{
         display: 'block',
-        width: '267px',
+        background: selected
+          ? theme.fn.gradient({ from: 'teal', to: 'green', deg: 105 })
+          : 'transparent',
+        width: '100%',
         padding: theme.spacing.xs,
         overflow: 'hidden',
         borderRadius: theme.radius.sm,
@@ -478,15 +463,15 @@ export function User({
           />
         </Indicator>
         <Box sx={{ flex: 1, width: '267px', overflow: 'hidden' }}>
-          <Text size="sm" weight={500}>
-            {name || 'Amy Horsefighter'}
+          <Text size="sm" weight={500} color={selected ? '#fff' : ''}>
+            {name}
           </Text>
           <Text
-            color="dimmed"
+            color={selected ? '#fff' : 'dimmed'}
             size="xs"
             sx={{ whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}
           >
-            {sub || 'ahorsefighter@gmail.com'}
+            {sub || ''}
           </Text>
         </Box>
         {right}

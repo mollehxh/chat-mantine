@@ -159,7 +159,10 @@ Conversation.belongsTo(User, { as: 'user2', foreignKey: 'user2Id' });
 
 Conversation.hasMany(Message, { as: 'messages', foreignKey: 'conversationId' });
 
-Message.belongsTo(Conversation, { foreignKey: 'conversationId' });
+Message.belongsTo(Conversation, {
+  as: 'messages',
+  foreignKey: 'conversationId',
+});
 Message.belongsTo(User, { as: 'sender', foreignKey: 'senderId' });
 Message.belongsTo(User, { as: 'receiver', foreignKey: 'receiverId' });
 
@@ -536,6 +539,7 @@ class UserController {
           },
           {
             model: Message,
+            as: 'messages',
             attributes: ['id', 'content', 'sentAt'],
             include: [
               {
@@ -552,21 +556,29 @@ class UserController {
             order: [['sentAt', 'ASC']],
           },
         ],
-        order: [[Message, 'sentAt', 'ASC']],
+        order: [['messages', 'sentAt', 'ASC']],
       });
 
-      // Проверка, есть ли такой диалог
-      if (!conversation) {
-        return res.status(404).json({ message: 'Диалог не найден' });
-      }
-
       // Формирование результата
-      const { id, user1, user2, Messages } = conversation;
-      const result = {
-        id,
-        user: userId == user1.id ? user2 : user1,
-        messages: Messages,
-      };
+      let result;
+      if (conversation) {
+        const { id, user1, user2, messages } = conversation;
+        result = {
+          id,
+          user: userId == user1.id ? user2 : user1,
+          messages,
+        };
+      } else {
+        const interlocutor = await User.findOne({
+          where: { id: interlocutorId },
+          attributes: ['id', 'username', 'email'],
+        });
+        result = {
+          id: null,
+          user: interlocutor,
+          messages: [],
+        };
+      }
 
       res.json(result);
     } catch (error) {
@@ -574,7 +586,6 @@ class UserController {
       res.status(500).json({ message: 'Внутренняя ошибка сервера' });
     }
   }
-
   static async getDialogContacts(req, res) {
     try {
       const { userId } = req.params;
@@ -630,6 +641,43 @@ class UserController {
       res.status(500).json({ message: 'Внутренняя ошибка сервера' });
     }
   }
+
+  static async sendMessage2(req, res) {
+    try {
+      const { senderId, receiverId, content } = req.body;
+
+      // Поиск диалога между пользователями
+      let conversation = await Conversation.findOne({
+        where: {
+          [Op.or]: [
+            { user1Id: senderId, user2Id: receiverId },
+            { user1Id: receiverId, user2Id: senderId },
+          ],
+        },
+      });
+
+      // Если диалог не найден, создаем новый
+      if (!conversation) {
+        conversation = await Conversation.create({
+          user1Id: senderId,
+          user2Id: receiverId,
+        });
+      }
+
+      // Создание сообщения
+      const message = await Message.create({
+        conversationId: conversation.id,
+        senderId: senderId,
+        receiverId: receiverId,
+        content,
+      });
+
+      res.json({ message: 'Сообщение отправлено успешно' });
+    } catch (error) {
+      console.error('Ошибка при отправке сообщения:', error);
+      res.status(500).json({ message: 'Внутренняя ошибка сервера' });
+    }
+  }
 }
 const PORT = 5000;
 
@@ -648,6 +696,7 @@ app.get('/conversations', UserController.getConversations);
 app.get('/conversations/:conversationId', UserController.getDialogMessages);
 app.get('/conversations2', UserController.getDialogMessages2);
 app.post('/messages', UserController.sendMessage);
+app.post('/messages2', UserController.sendMessage2);
 app.get('/users/:userId/dialog-contacts', UserController.getDialogContacts);
 
 // Запуск сервера
