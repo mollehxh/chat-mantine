@@ -125,13 +125,10 @@ const Setting = sequelize.define('Setting', {
     autoIncrement: true,
     primaryKey: true,
   },
-  theme: {
-    type: DataTypes.STRING,
-    allowNull: true,
-  },
-  language: {
-    type: DataTypes.STRING,
-    allowNull: true,
+  darkThemeEnabled: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: true,
   },
   notificationEnabled: {
     type: DataTypes.BOOLEAN,
@@ -679,6 +676,8 @@ class UserController {
         receiverId: receiverId,
         content,
       });
+
+      io.emit('msg', message);
 
       res.json({ message: 'Сообщение отправлено успешно' });
     } catch (error) {
