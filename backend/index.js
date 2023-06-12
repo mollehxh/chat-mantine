@@ -1,7 +1,8 @@
 const { Server } = require('socket.io');
 const http = require('http');
+const path = require('path');
 const { default: axios } = require('axios');
-
+const multer = require('multer');
 const express = require('express');
 const cors = require('cors');
 const bcrypt = require('bcrypt');
@@ -11,6 +12,21 @@ const { Sequelize, DataTypes, Op } = require('sequelize');
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*' } });
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, 'avatars'); // Directory to store uploaded avatars
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    cb(
+      null,
+      file.fieldname + '-' + uniqueSuffix + '.' + file.mimetype.split('/')[1]
+    );
+  },
+});
+const upload = multer({ storage: storage });
+
+app.use('/avatars', express.static('avatars'));
 
 // Параметры подключения к базе данных
 const sequelize = new Sequelize('chattie', 'root', 'root', {
@@ -245,6 +261,7 @@ class UserController {
         username,
         email,
         password: hashedPassword,
+        avatar: req.file ? req.file.filename : null,
       });
 
       // Создание JWT-токена
@@ -302,7 +319,7 @@ class UserController {
 
       // Получение информации о пользователе по userId
       const user = await User.findByPk(userId, {
-        attributes: ['id', 'username', 'email'],
+        attributes: ['id', 'username', 'email', 'avatar'],
         raw: true,
       });
 
@@ -335,7 +352,7 @@ class UserController {
             [Op.like]: `%${username}%`, // Поиск совпадений с использованием оператора LIKE
           },
         },
-        attributes: ['id', 'username', 'email'],
+        attributes: ['id', 'username', 'email', 'avatar'],
       });
 
       res.json(users);
@@ -399,6 +416,7 @@ class UserController {
             id: otherUser.id,
             username: otherUser.username,
             email: otherUser.email,
+            avatar: otherUser.avatar,
           },
           lastMessage,
         };
@@ -535,12 +553,12 @@ class UserController {
           {
             model: User,
             as: 'user1',
-            attributes: ['id', 'username', 'email'],
+            attributes: ['id', 'username', 'email', 'avatar'],
           },
           {
             model: User,
             as: 'user2',
-            attributes: ['id', 'username', 'email'],
+            attributes: ['id', 'username', 'email', 'avatar'],
           },
           {
             model: Message,
@@ -550,12 +568,12 @@ class UserController {
               {
                 model: User,
                 as: 'sender',
-                attributes: ['id', 'username', 'email'],
+                attributes: ['id', 'username', 'email', 'avatar'],
               },
               {
                 model: User,
                 as: 'receiver',
-                attributes: ['id', 'username', 'email'],
+                attributes: ['id', 'username', 'email', 'avatar'],
               },
             ],
             order: [['sentAt', 'ASC']],
@@ -576,7 +594,7 @@ class UserController {
       } else {
         const interlocutor = await User.findOne({
           where: { id: interlocutorId },
-          attributes: ['id', 'username', 'email'],
+          attributes: ['id', 'username', 'email', 'avatar'],
         });
         result = {
           id: null,
@@ -604,12 +622,12 @@ class UserController {
           {
             model: User,
             as: 'user1',
-            attributes: ['id', 'username', 'email'],
+            attributes: ['id', 'username', 'email', 'avatar'],
           },
           {
             model: User,
             as: 'user2',
-            attributes: ['id', 'username', 'email'],
+            attributes: ['id', 'username', 'email', 'avatar'],
           },
           {
             model: Message,
@@ -630,6 +648,7 @@ class UserController {
           id: contact.id,
           username: contact.username,
           email: contact.email,
+          avatar: contact.avatar,
           lastMessage: lastMessage
             ? {
                 id: lastMessage.id,
@@ -677,7 +696,23 @@ class UserController {
         content,
       });
 
-      io.emit('msg', message);
+      const sendedMessage = await Message.findOne({
+        where: { id: message.id },
+        include: [
+          {
+            model: User,
+            as: 'receiver',
+            attributes: ['id', 'username', 'avatar'],
+          },
+          {
+            model: User,
+            as: 'sender',
+            attributes: ['id', 'username', 'avatar'],
+          },
+        ],
+      });
+
+      io.emit('msg', receiverId);
 
       res.json({ message: 'Сообщение отправлено успешно' });
     } catch (error) {
@@ -694,7 +729,7 @@ app.use(express.json());
 // Роутеры и промежуточное ПО приложения
 
 // Маршруты для регистрации и авторизации пользователя
-app.post('/register', UserController.register);
+app.post('/register', upload.single('avatar'), UserController.register);
 app.post('/login', UserController.login);
 app.get('/session', UserController.getSession);
 app.get('/users/search', UserController.searchUsers);
@@ -704,6 +739,12 @@ app.get('/conversations2', UserController.getDialogMessages2);
 // app.post('/messages', UserController.sendMessage);
 app.post('/messages2', UserController.sendMessage2);
 app.get('/users/:userId/dialog-contacts', UserController.getDialogContacts);
+app.get('/avatar/:filename', (req, res) => {
+  const filename = req.params.filename;
+  const filePath = path.join(__dirname, 'uploads', filename);
+
+  res.sendFile(filePath);
+});
 
 // Обработка сокетов
 io.on('connection', (socket) => {

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import {
   ActionIcon,
@@ -24,6 +24,8 @@ import {
   Modal,
   Switch,
   Card,
+  FileButton,
+  Overlay,
 } from '@mantine/core';
 
 import {
@@ -41,6 +43,8 @@ import {
   IconArrowNarrowDown,
   IconArrowNarrowLeft,
   IconHandStop,
+  IconPin,
+  IconTrash,
 } from '@tabler/icons-react';
 import { $user, signOut } from '../../shared/session/model';
 import { useUnit } from 'effector-react';
@@ -59,9 +63,26 @@ import {
 import { useList } from 'effector-react';
 
 function Aform() {
+  const session = useUnit($user);
+
   return (
     <form>
       <Stack spacing="md">
+        <Flex align="center" direction="column">
+          <FileButton onChange={() => {}}>
+            {(props) => (
+              <Avatar
+                {...props}
+                component={UnstyledButton}
+                radius="xl"
+                size="lg"
+                src={`http://localhost:5000/avatars/${session!.avatar}`}
+              />
+            )}
+          </FileButton>
+          <Text>{session?.username}</Text>
+        </Flex>
+
         <Switch
           label="Темная тема"
           color="teal"
@@ -88,24 +109,12 @@ function AppShellDemo() {
   const session = useUnit($user);
   const messageValue = useUnit($messageValue);
   const interlocutor = useUnit($interlocutor);
+  const messages = useUnit($conversationMessages);
   console.log(interlocutor);
 
   const searchValue = useUnit($searchValue);
   const searchResults = useList($searchResults, {
-    fn: ({ id, username }) => (
-      <span
-        onClick={() => {
-          conversationClicked(String(id));
-          setOpened(() => false);
-        }}
-      >
-        <User name={username} selected={interlocutor?.id == id} />
-      </span>
-    ),
-    keys: [interlocutor],
-  });
-  const conversations = useList($conversations, {
-    fn: ({ id, username, lastMessage }: any) => (
+    fn: ({ id, username, avatar }) => (
       <span
         onClick={() => {
           conversationClicked(String(id));
@@ -114,6 +123,24 @@ function AppShellDemo() {
       >
         <User
           name={username}
+          avatar={avatar}
+          selected={interlocutor?.id == id}
+        />
+      </span>
+    ),
+    keys: [interlocutor],
+  });
+  const conversations = useList($conversations, {
+    fn: ({ id, avatar, username, lastMessage }: any) => (
+      <span
+        onClick={() => {
+          conversationClicked(String(id));
+          setOpened(() => false);
+        }}
+      >
+        <User
+          name={username}
+          avatar={avatar}
           sub={lastMessage.content}
           selected={interlocutor?.id == id}
         />
@@ -130,24 +157,14 @@ function AppShellDemo() {
 
   const viewport = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    viewport.current?.scrollTo({
+      top: viewport.current.scrollHeight,
+    });
+  }, [messages]);
+
   return (
     <>
-      {/* <Modal
-        opened={opened}
-        onClose={() => setOpened(false)}
-        title="Proflie"
-        overlayProps={{
-          color:
-            theme.colorScheme === 'dark'
-              ? theme.colors.dark[9]
-              : theme.colors.gray[2],
-          opacity: 0.55,
-          blur: 3,
-        }}
-        centered
-      >
-        
-      </Modal> */}
       <Modal
         opened={opened2}
         onClose={() => setOpened2(false)}
@@ -202,12 +219,7 @@ function AppShellDemo() {
 
                   <Menu.Dropdown>
                     <Menu.Label>{session?.username}</Menu.Label>
-                    <Menu.Item
-                      icon={<IconUser size={14} />}
-                      onClick={() => setOpened(true)}
-                    >
-                      Профиль
-                    </Menu.Item>
+
                     <Menu.Item
                       icon={<IconSettings size={14} />}
                       onClick={() => setOpened2(true)}
@@ -307,8 +319,14 @@ function AppShellDemo() {
                     </Menu.Target>
 
                     <Menu.Dropdown>
+                      <Menu.Item icon={<IconPin size={14} />}>
+                        Закрепить
+                      </Menu.Item>
                       <Menu.Item color="red" icon={<IconHandStop size={14} />}>
                         Заблокировать
+                      </Menu.Item>
+                      <Menu.Item color="red" icon={<IconTrash size={14} />}>
+                        Удалить диалог
                       </Menu.Item>
                     </Menu.Dropdown>
                   </Menu>
@@ -341,6 +359,7 @@ function AppShellDemo() {
         <ScrollArea
           h="100%"
           type="hover"
+          px={36}
           scrollbarSize={6}
           viewportRef={viewport}
         >
@@ -388,12 +407,14 @@ const Message = ({ isMe, content }: any) => {
 export function User({
   name,
   sub,
+  avatar,
   online,
   right,
   selected,
 }: {
   name?: any;
   sub?: any;
+  avatar: any;
   online?: boolean;
   right?: any;
   selected?: boolean;
@@ -403,7 +424,7 @@ export function User({
   return (
     <UnstyledButton
       w={{
-        lg: '267px',
+        sm: '267px',
       }}
       sx={{
         display: 'block',
@@ -434,10 +455,7 @@ export function User({
           disabled={!online}
           withBorder
         >
-          <Avatar
-            src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&ixlib=rb-1.2.1&auto=format&fit=crop&w=250&q=80"
-            radius="xl"
-          />
+          <Avatar src={`http://localhost:5000/avatars/${avatar}`} radius="xl" />
         </Indicator>
         <Box sx={{ flex: 1, width: '267px', overflow: 'hidden' }}>
           <Text size="sm" weight={500} color={selected ? '#fff' : ''}>

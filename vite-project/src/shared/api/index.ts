@@ -4,6 +4,7 @@ export interface User {
   id: number;
   username: string;
   email: string;
+  avatar: string;
 }
 
 export interface LastMessage {
@@ -18,6 +19,7 @@ interface RegisterData {
   username: string;
   email: string;
   password: string;
+  avatar: any;
 }
 
 interface LoginData {
@@ -40,8 +42,21 @@ api.interceptors.request.use(
 );
 
 export async function registerUser(data: RegisterData): Promise<string> {
-  const response = await api.post('/register', data);
+  console.log('data', data);
+  const formData = new FormData();
+  formData.append('avatar', data.avatar);
+  formData.append('username', data.username);
+  formData.append('email', data.email);
+  formData.append('password', data.password);
+
+  const response = await api.post('/register', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+
   return response.data.token;
+  // const response = await api.post('/register', data);
 }
 
 export async function loginUser(data: LoginData): Promise<string> {

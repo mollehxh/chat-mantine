@@ -1,10 +1,11 @@
-import { createEffect, sample } from 'effector';
-import { createForm, string } from 'efform';
+import { createEffect, createStore, sample } from 'effector';
+import { createForm, record, string } from 'efform';
 import { debug } from 'patronum';
 import { routes } from '../../shared/routing';
 import { $token, chainAnonymous } from '../../shared/session/model';
 import { createEvent } from 'effector/effector.mjs';
-import { loginUser, registerUser } from '../../shared/api';
+import { registerUser } from '../../shared/api';
+import { notifications } from '@mantine/notifications';
 
 export const currentRoute = routes.signUp;
 export const anonymousRoute = chainAnonymous(currentRoute, {
@@ -13,6 +14,10 @@ export const anonymousRoute = chainAnonymous(currentRoute, {
 
 export const formSubmitClicked = createEvent();
 export const signUpFx = createEffect(registerUser);
+
+export const avatarChanged = createEvent<File | null>();
+export const $avatar = createStore<File | null>(null);
+$avatar.on(avatarChanged, (_, file) => file);
 
 export const signUpForm = createForm({
   username: string()
@@ -38,6 +43,8 @@ sample({
 
 sample({
   clock: signUpForm.submitted,
+  source: { avatar: $avatar },
+  fn: ({ avatar }, formData) => ({ ...formData, avatar }),
   target: signUpFx,
 });
 
@@ -50,6 +57,18 @@ sample({
   clock: currentRoute.closed,
   fn: () => ({ username: '', email: '', password: '' }),
   target: signUpForm.fill,
+});
+
+sample({
+  clock: signUpFx.failData,
+  fn: (error: any) =>
+    notifications.show({
+      message: error.response.data.message,
+      color: 'red',
+      autoClose: 5000,
+      withCloseButton: true,
+      withBorder: true,
+    }),
 });
 
 debug(signUpForm.submitted);

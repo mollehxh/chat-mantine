@@ -2,7 +2,7 @@ import { createEvent, createEffect } from 'effector';
 import { io } from 'socket.io-client';
 
 export const createSocket = (uri: string) => {
-  const socket = io(uri, { autoConnect: false });
+  const socket = io(uri);
 
   const on = <T>(eventType: string) => {
     const event = createEvent<T>();
@@ -18,13 +18,11 @@ export const createSocket = (uri: string) => {
     });
   };
 
-  const connectFx = createEffect(socket.connect);
   const disconnectFx = createEffect(socket.disconnect);
 
   return {
     on,
     emit,
     disconnect: disconnectFx,
-    connect: connectFx,
   };
 };

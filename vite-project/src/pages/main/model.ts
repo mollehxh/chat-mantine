@@ -1,5 +1,6 @@
 import { createEffect, createEvent, createStore, sample } from 'effector';
 import { routes } from '../../shared/routing';
+import notify from '../../shared/sounds/notify.mp3';
 import { $user, chainAuthorized } from '../../shared/session/model';
 import {
   LastMessage,
@@ -11,17 +12,23 @@ import {
 } from '../../shared/api';
 import { debug, reset } from 'patronum';
 import { createSocket } from '../../shared/lib/create-socket';
+import { notifications } from '@mantine/notifications';
 
 export const currentRoute = routes.main;
 export const authorizedRoute = chainAuthorized(currentRoute, {
   otherwise: routes.signIn.open,
 });
 
-const socket = createSocket('');
+const socket = createSocket('http://localhost:5000');
+const msgRecived = socket.on<any>('msg');
+const connect = socket.emit<string>('connect');
 
 sample({
   clock: authorizedRoute.opened,
-  target: socket.connect,
+  source: $user,
+  filter: Boolean,
+  fn: ({ id }) => String(id),
+  target: connect,
 });
 
 export const messageValueChanged = createEvent<string>();
@@ -52,6 +59,15 @@ export const $conversationMessages = $selectedConversation.map(
 export const $interlocutor = $selectedConversation.map(
   ({ user }: any) => user as User
 );
+
+// $selectedConversation.on(msgRecived, (old, message) => {
+//   console.log('old', old);
+//   console.log('old', message);
+//   return {
+//     ...old,
+//     messages: [...old.messages, message],
+//   };
+// });
 
 sample({
   clock: sendMessageClicked,
@@ -96,7 +112,7 @@ sample({
 });
 
 sample({
-  clock: authorizedRoute.opened,
+  clock: [authorizedRoute.opened, msgRecived],
   source: $user,
   filter: Boolean,
   fn: ({ id }) => String(id),
@@ -108,15 +124,39 @@ sample({
   target: $conversations,
 });
 
+const $conversationId = createStore('');
 sample({
   clock: conversationClicked,
-  source: { user: $user },
+  target: $conversationId,
+});
+
+sample({
+  clock: [$conversationId, msgRecived],
+  source: { user: $user, conversationId: $conversationId },
   filter: ({ user }) => Boolean(user),
-  fn: ({ user }, conversationId) => ({
+  fn: ({ user, conversationId }) => ({
     userId: String(user!.id),
-    conversationId,
+    conversationId: String(conversationId),
   }),
   target: getConversationByIdFx,
+});
+
+sample({
+  clock: msgRecived,
+  source: $user,
+  filter: Boolean,
+  fn: ({ id }, receiverId) => {
+    if (id !== receiverId) return;
+    const audio = new Audio(notify);
+    audio.play();
+    notifications.show({
+      message: 'Новое сообщение',
+      color: 'blue',
+      autoClose: 5000,
+      withCloseButton: true,
+      withBorder: true,
+    });
+  },
 });
 
 sample({
@@ -124,4 +164,4 @@ sample({
   target: $selectedConversation,
 });
 
-debug($searchResults);
+debug(conversationClicked, msgRecived);

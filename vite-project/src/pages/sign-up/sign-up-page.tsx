@@ -7,11 +7,18 @@ import {
   Text,
   Container,
   Button,
+  FileButton,
+  Avatar,
+  UnstyledButton,
+  Center,
+  Flex,
 } from '@mantine/core';
 
-import { formSubmitClicked, signUpForm } from './model';
+import { $avatar, avatarChanged, formSubmitClicked, signUpForm } from './model';
 import { createStringField } from 'efform-react';
 import { routes } from '../../shared/routing';
+import { useUnit } from 'effector-react/effector-react.mjs';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 export const SignUpPage = () => {
   return (
@@ -36,6 +43,13 @@ export const SignUpPage = () => {
           mt={30}
           radius="md"
         >
+          {/* <input
+            type="file"
+            name="avatar"
+            accept="image/*"
+            onChange={(evt) => console.log(evt.target.files[0])}
+          /> */}
+          <AvatarField />
           <UsernameField for="username" />
           <EmailField for="email" />
           <PasswordField for="password" />
@@ -70,6 +84,38 @@ export const SignUpPage = () => {
   );
 };
 
+const AvatarField = () => {
+  const avatar = useUnit($avatar);
+  const [fileSrc, setFileSrc] = useState<string | ArrayBuffer | null>('');
+
+  useEffect(() => {
+    if (avatar) {
+      const reader = new FileReader();
+      reader.onloadend = function () {
+        setFileSrc(reader.result);
+      };
+      reader.readAsDataURL(avatar);
+    }
+  }, [avatar]);
+
+  return (
+    <Flex direction="column" align="center" justify="center">
+      <FileButton onChange={(file) => avatarChanged(file)}>
+        {(props) => (
+          <Avatar
+            {...props}
+            component={UnstyledButton}
+            radius="xl"
+            size="lg"
+            src={fileSrc as string}
+          />
+        )}
+      </FileButton>
+      <Text>Аватар пользователя</Text>
+    </Flex>
+  );
+};
+
 const UsernameField = createStringField(
   signUpForm,
   ({ value, onChange, error, validate }) => (
@@ -82,6 +128,7 @@ const UsernameField = createStringField(
         validate();
       }}
       error={error}
+      mt="md"
       required
     />
   )

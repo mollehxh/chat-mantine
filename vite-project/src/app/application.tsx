@@ -9,7 +9,7 @@ export function App() {
       withGlobalStyles
       withNormalizeCSS
     >
-      <Notifications position="bottom-left" />
+      <Notifications position="top-center" />
       <Pages />
     </MantineProvider>
   );
