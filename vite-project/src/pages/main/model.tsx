@@ -13,6 +13,7 @@ import {
 import { debug, reset } from 'patronum';
 import { createSocket } from '../../shared/lib/create-socket';
 import { notifications } from '@mantine/notifications';
+import { Avatar } from '@mantine/core';
 
 export const currentRoute = routes.main;
 export const authorizedRoute = chainAuthorized(currentRoute, {
@@ -143,16 +144,32 @@ sample({
 
 sample({
   clock: msgRecived,
-  source: $user,
-  filter: Boolean,
-  fn: ({ id }, receiverId) => {
-    if (id !== receiverId) return;
+  source: { user: $user, selectedConversation: $selectedConversation },
+  fn: (
+    { user, selectedConversation },
+    { receiver, sender, content, conversation }
+  ) => {
+    if (!user) return;
+    if (user.id !== receiver.id || selectedConversation.id == conversation.id)
+      return;
     const audio = new Audio(notify);
     audio.play();
     notifications.show({
-      message: 'Новое сообщение',
-      color: 'blue',
+      id: 'message',
+      message: content,
+      title: `Новое сообщение от ${sender.username}`,
+      color: 'gray',
       autoClose: 5000,
+      onClick: () => {
+        notifications.hide('message');
+        conversationClicked(String(sender.id));
+      },
+      icon: (
+        <Avatar
+          src={`http://localhost:5000/avatars/${sender.avatar}`}
+          radius="xl"
+        />
+      ),
       withCloseButton: true,
       withBorder: true,
     });

@@ -25,7 +25,6 @@ import {
   Switch,
   Card,
   FileButton,
-  Overlay,
 } from '@mantine/core';
 
 import {
@@ -35,7 +34,6 @@ import {
   IconMenu2,
   IconSettings,
   IconLogout,
-  IconUser,
   IconSun,
   IconBell,
   IconBellOff,

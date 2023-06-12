@@ -696,23 +696,14 @@ class UserController {
         content,
       });
 
-      const sendedMessage = await Message.findOne({
-        where: { id: message.id },
-        include: [
-          {
-            model: User,
-            as: 'receiver',
-            attributes: ['id', 'username', 'avatar'],
-          },
-          {
-            model: User,
-            as: 'sender',
-            attributes: ['id', 'username', 'avatar'],
-          },
-        ],
+      const receiver = await User.findByPk(receiverId, {
+        attributes: ['id', 'username', 'avatar'],
+      });
+      const sender = await User.findByPk(senderId, {
+        attributes: ['id', 'username', 'avatar'],
       });
 
-      io.emit('msg', receiverId);
+      io.emit('msg', { receiver, sender, content, conversation });
 
       res.json({ message: 'Сообщение отправлено успешно' });
     } catch (error) {
