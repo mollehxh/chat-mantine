@@ -66,21 +66,24 @@ function Aform() {
   return (
     <form>
       <Stack spacing="md">
-        <Flex align="center" direction="column">
+        <Flex align="center" direction="column" gap="md">
           <FileButton onChange={() => {}}>
             {(props) => (
               <Avatar
                 {...props}
                 component={UnstyledButton}
                 radius="xl"
-                size="lg"
+                size="xl"
+                sx={{
+                  borderRadius: '100%',
+                }}
                 src={`http://localhost:5000/avatars/${session!.avatar}`}
               />
             )}
           </FileButton>
           <Text>{session?.username}</Text>
         </Flex>
-
+        <Divider />
         <Switch
           label="Темная тема"
           color="teal"
@@ -357,7 +360,6 @@ function AppShellDemo() {
         <ScrollArea
           h="100%"
           type="hover"
-          px={36}
           scrollbarSize={6}
           viewportRef={viewport}
         >
