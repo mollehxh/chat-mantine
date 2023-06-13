@@ -125,11 +125,13 @@ function AppShellDemo() {
           setOpened(() => false);
         }}
       >
-        <User
-          name={username}
-          avatar={avatar}
-          selected={interlocutor?.id == id}
-        />
+        {session && id !== session.id && (
+          <User
+            name={username}
+            avatar={avatar}
+            selected={interlocutor?.id == id}
+          />
+        )}
       </span>
     ),
     keys: [interlocutor],
@@ -142,12 +144,14 @@ function AppShellDemo() {
           setOpened(() => false);
         }}
       >
-        <User
-          name={username}
-          avatar={avatar}
-          sub={lastMessage.content}
-          selected={interlocutor?.id == id}
-        />
+        {session && id !== session.id && (
+          <User
+            name={username}
+            avatar={avatar}
+            sub={lastMessage.content}
+            selected={interlocutor?.id == id}
+          />
+        )}
       </span>
     ),
     keys: [interlocutor],
@@ -485,7 +489,8 @@ export function User({
             {sub || ''}
           </Text>
         </Box>
-        {right}
+
+        <IconPin color={selected ? '#fff' : 'black'} />
       </Group>
     </UnstyledButton>
   );
