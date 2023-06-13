@@ -53,7 +53,9 @@ import {
   $messageValue,
   $searchResults,
   $searchValue,
+  $selectedConversation,
   conversationClicked,
+  deleteConversationClicked,
   messageValueChanged,
   searchValueChanged,
   sendMessageClicked,
@@ -112,6 +114,7 @@ function AppShellDemo() {
   const interlocutor = useUnit($interlocutor);
   const messages = useUnit($conversationMessages);
   console.log(interlocutor);
+  const currentConversation = useUnit($selectedConversation);
 
   const searchValue = useUnit($searchValue);
   const searchResults = useList($searchResults, {
@@ -275,25 +278,32 @@ function AppShellDemo() {
           <>
             {interlocutor && (
               <Footer height="auto" px={theme.spacing.md} py={theme.spacing.xs}>
-                <Flex gap="xs" justify="space-between" align="center">
-                  <TextInput
-                    w="100%"
-                    variant="unstyled"
-                    value={messageValue}
-                    onChange={(event) =>
-                      messageValueChanged(event.currentTarget.value)
-                    }
-                    placeholder="Введите сообщение..."
-                  />
-                  <ActionIcon
-                    size="lg"
-                    variant="subtle"
-                    color="teal"
-                    onClick={() => sendMessageClicked()}
-                  >
-                    <IconSend />
-                  </ActionIcon>
-                </Flex>
+                <form
+                  onSubmit={(evt) => {
+                    evt.preventDefault();
+                    sendMessageClicked();
+                  }}
+                >
+                  <Flex gap="xs" justify="space-between" align="center">
+                    <TextInput
+                      w="100%"
+                      variant="unstyled"
+                      value={messageValue}
+                      onChange={(event) =>
+                        messageValueChanged(event.currentTarget.value)
+                      }
+                      placeholder="Введите сообщение..."
+                    />
+                    <ActionIcon
+                      size="lg"
+                      variant="subtle"
+                      color="teal"
+                      type="submit"
+                    >
+                      <IconSend />
+                    </ActionIcon>
+                  </Flex>
+                </form>
               </Footer>
             )}
           </>
@@ -326,7 +336,13 @@ function AppShellDemo() {
                       <Menu.Item color="red" icon={<IconHandStop size={14} />}>
                         Заблокировать
                       </Menu.Item>
-                      <Menu.Item color="red" icon={<IconTrash size={14} />}>
+                      <Menu.Item
+                        color="red"
+                        icon={<IconTrash size={14} />}
+                        onClick={() =>
+                          deleteConversationClicked(currentConversation.id)
+                        }
+                      >
                         Удалить диалог
                       </Menu.Item>
                     </Menu.Dropdown>

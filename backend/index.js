@@ -703,11 +703,40 @@ class UserController {
         attributes: ['id', 'username', 'avatar'],
       });
 
+      console.log(
+        '=======================================================',
+        conversation.id
+      );
       io.emit('msg', { receiver, sender, content, conversation });
 
       res.json({ message: 'Сообщение отправлено успешно' });
     } catch (error) {
       console.error('Ошибка при отправке сообщения:', error);
+      res.status(500).json({ message: 'Внутренняя ошибка сервера' });
+    }
+  }
+
+  static async deleteConversation(req, res) {
+    try {
+      const { conversationId } = req.params;
+
+      // Удаление диалога
+      const deletedRows = await Conversation.destroy({
+        where: {
+          id: conversationId,
+        },
+      });
+
+      // Проверка, был ли удален диалог
+      if (deletedRows === 0) {
+        return res.status(404).json({ message: 'Диалог не найден' });
+      }
+
+      io.emit('conversationDeleted', conversationId);
+
+      res.json({ message: 'Диалог успешно удален' });
+    } catch (error) {
+      console.error('Ошибка при удалении диалога:', error);
       res.status(500).json({ message: 'Внутренняя ошибка сервера' });
     }
   }
@@ -727,6 +756,7 @@ app.get('/users/search', UserController.searchUsers);
 app.get('/conversations', UserController.getConversations);
 // app.get('/conversations/:conversationId', UserController.getDialogMessages);
 app.get('/conversations2', UserController.getDialogMessages2);
+app.delete('/conversations/:conversationId', UserController.deleteConversation);
 // app.post('/messages', UserController.sendMessage);
 app.post('/messages2', UserController.sendMessage2);
 app.get('/users/:userId/dialog-contacts', UserController.getDialogContacts);
@@ -777,21 +807,21 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('disconnect', async () => {
-    try {
-      await RoomMember.destroy({
-        where: {
-          room_id: roomUsers.get(socket.id).roomId,
-          user_id: roomUsers.get(socket.id).userId,
-        },
-      });
-      socket.leave(roomUsers.get(socket.id).roomId);
+  // socket.on('disconnect', async () => {
+  //   try {
+  //     await RoomMember.destroy({
+  //       where: {
+  //         room_id: roomUsers.get(socket.id).roomId,
+  //         user_id: roomUsers.get(socket.id).userId,
+  //       },
+  //     });
+  //     socket.leave(roomUsers.get(socket.id).roomId);
 
-      roomUsers.delete(socket.id);
-    } catch (error) {
-      console.error(error);
-    }
-  });
+  //     roomUsers.delete(socket.id);
+  //   } catch (error) {
+  //     console.error(error);
+  //   }
+  // });
 });
 
 // Запуск сервера

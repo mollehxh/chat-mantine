@@ -17,6 +17,7 @@ import {
 import { getSession, User } from '../api';
 import { persist } from 'effector-storage/local';
 import { reset } from 'patronum';
+import { modals } from '@mantine/modals';
 
 enum AuthStatus {
   Initial = 0,
@@ -26,6 +27,7 @@ enum AuthStatus {
 }
 
 export const signOut = createEvent();
+const signOutConfirmed = createEvent();
 
 export const sessionRequestFx = createEffect(getSession);
 
@@ -33,8 +35,21 @@ export const $user = createStore<User | null>(null);
 export const $token = createStore('');
 const $authenticationStatus = createStore(AuthStatus.Initial);
 
-reset({
+sample({
   clock: signOut,
+  fn: () => {
+    modals.openConfirmModal({
+      title: 'Вы точно хотите выйти из аккаунта?',
+      labels: { confirm: 'Выйти', cancel: 'Отменить' },
+      onConfirm: () => signOutConfirmed(),
+      confirmProps: { color: 'red' },
+      centered: true,
+    });
+  },
+});
+
+reset({
+  clock: signOutConfirmed,
   target: [$user, $token, $authenticationStatus],
 });
 

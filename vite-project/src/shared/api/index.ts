@@ -108,3 +108,8 @@ export async function sendMessage(data: {
   const response = await api.post('/messages2', data);
   return response.data;
 }
+
+export async function deleteConversation(conversationId: number) {
+  const response = await api.delete(`/conversations/${conversationId}`);
+  return response.data;
+}

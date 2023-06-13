@@ -5,6 +5,7 @@ import { $user, chainAuthorized } from '../../shared/session/model';
 import {
   LastMessage,
   User,
+  deleteConversation,
   getConversationById,
   getConversations,
   searchUsers,
@@ -14,6 +15,8 @@ import { debug, reset } from 'patronum';
 import { createSocket } from '../../shared/lib/create-socket';
 import { notifications } from '@mantine/notifications';
 import { Avatar } from '@mantine/core';
+import { modals } from '@mantine/modals';
+const audio = new Audio(notify);
 
 export const currentRoute = routes.main;
 export const authorizedRoute = chainAuthorized(currentRoute, {
@@ -22,6 +25,7 @@ export const authorizedRoute = chainAuthorized(currentRoute, {
 
 const socket = createSocket('http://localhost:5000');
 const msgRecived = socket.on<any>('msg');
+const conversationDeleted = socket.on<any>('conversationDeleted');
 const connect = socket.emit<string>('connect');
 
 sample({
@@ -36,15 +40,17 @@ export const messageValueChanged = createEvent<string>();
 export const sendMessageClicked = createEvent();
 export const searchValueChanged = createEvent<string>();
 export const conversationClicked = createEvent<string>();
+export const deleteConversationClicked = createEvent<number>();
 
 const searchUsersFx = createEffect(searchUsers);
 const getConversationsFx = createEffect(getConversations);
 const getConversationByIdFx = createEffect(getConversationById);
 const sendMessageFx = createEffect(sendMessage);
+const deleteConversationFx = createEffect(deleteConversation);
 
 export const $messageValue = createStore('');
 export const $searchValue = createStore('');
-export const $selectedConversation = createStore<any>({});
+export const $selectedConversation = createStore<any>(null);
 export const $searchResults = createStore<User[]>([]);
 export const $conversations = createStore<
   {
@@ -55,11 +61,15 @@ export const $conversations = createStore<
 >([]);
 
 export const $conversationMessages = $selectedConversation.map(
-  ({ messages }: any) => messages
+  (conversation) => {
+    if (conversation) return conversation.messages;
+    return [];
+  }
 );
-export const $interlocutor = $selectedConversation.map(
-  ({ user }: any) => user as User
-);
+export const $interlocutor = $selectedConversation.map((conversation) => {
+  if (conversation) return conversation.user;
+  return null;
+});
 
 // $selectedConversation.on(msgRecived, (old, message) => {
 //   console.log('old', old);
@@ -69,6 +79,20 @@ export const $interlocutor = $selectedConversation.map(
 //     messages: [...old.messages, message],
 //   };
 // });
+
+sample({
+  clock: deleteConversationClicked,
+  fn: (id) => {
+    modals.openConfirmModal({
+      title: 'Вы точно хотите удалить диалог?',
+
+      labels: { confirm: 'Удалить', cancel: 'Отменить' },
+      onConfirm: () => deleteConversationFx(id),
+      confirmProps: { color: 'red' },
+      centered: true,
+    });
+  },
+});
 
 sample({
   clock: sendMessageClicked,
@@ -113,7 +137,7 @@ sample({
 });
 
 sample({
-  clock: [authorizedRoute.opened, msgRecived],
+  clock: [authorizedRoute.opened, msgRecived, conversationDeleted],
   source: $user,
   filter: Boolean,
   fn: ({ id }) => String(id),
@@ -142,6 +166,16 @@ sample({
   target: getConversationByIdFx,
 });
 
+reset({
+  clock: sample({
+    clock: conversationDeleted,
+    source: { currentConversation: $selectedConversation },
+    filter: ({ currentConversation }, deletedConversationId) =>
+      currentConversation.id == deletedConversationId,
+  }),
+  target: [$selectedConversation],
+});
+
 sample({
   clock: msgRecived,
   source: { user: $user, selectedConversation: $selectedConversation },
@@ -149,19 +183,21 @@ sample({
     { user, selectedConversation },
     { receiver, sender, content, conversation }
   ) => {
+    console.log('rec', receiver.id);
+    console.log('selectConv', selectedConversation.id);
+    console.log('conv', conversation.id);
     if (!user) return;
     if (user.id !== receiver.id || selectedConversation.id == conversation.id)
       return;
-    const audio = new Audio(notify);
+    console.log('PLAY');
+
     audio.play();
     notifications.show({
-      id: 'message',
       message: content,
       title: `Новое сообщение от ${sender.username}`,
       color: 'gray',
       autoClose: 5000,
       onClick: () => {
-        notifications.hide('message');
         conversationClicked(String(sender.id));
       },
       icon: (
@@ -170,7 +206,6 @@ sample({
           radius="xl"
         />
       ),
-      withCloseButton: true,
       withBorder: true,
     });
   },
@@ -181,4 +216,4 @@ sample({
   target: $selectedConversation,
 });
 
-debug(conversationClicked, msgRecived);
+debug($selectedConversation);
