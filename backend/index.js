@@ -7,7 +7,8 @@ const express = require('express');
 const cors = require('cors');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const { Sequelize, DataTypes, Op } = require('sequelize');
+const { Sequelize, DataTypes, Op, where } = require('sequelize');
+const { uniq } = require('lodash');
 
 const app = express();
 const server = http.createServer(app);
@@ -206,7 +207,10 @@ Block.belongsTo(User, { as: 'blockedUser', foreignKey: 'blockedUserId' });
 User.hasMany(PinnedConversation, { foreignKey: 'userId' });
 
 PinnedConversation.belongsTo(User, { foreignKey: 'userId' });
-PinnedConversation.belongsTo(Conversation, { foreignKey: 'conversationId' });
+PinnedConversation.belongsTo(Conversation, {
+  as: 'conversation',
+  foreignKey: 'conversationId',
+});
 
 User.hasMany(Friend, { foreignKey: 'userId' });
 
@@ -582,12 +586,20 @@ class UserController {
         order: [['messages', 'sentAt', 'ASC']],
       });
 
+      let pinnedConversation;
+
       // Формирование результата
       let result;
       if (conversation) {
+        pinnedConversation = await PinnedConversation.findOne({
+          where: {
+            conversationId: conversation.id,
+          },
+        });
         const { id, user1, user2, messages } = conversation;
         result = {
           id,
+          isPinned: Boolean(pinnedConversation),
           user: userId == user1.id ? user2 : user1,
           messages,
         };
@@ -613,6 +625,37 @@ class UserController {
     try {
       const { userId } = req.params;
 
+      const pinnedConversations = await PinnedConversation.findAll({
+        where: {
+          userId: userId,
+        },
+        include: [
+          {
+            model: Conversation,
+            as: 'conversation',
+            include: [
+              {
+                model: User,
+                as: 'user1',
+                attributes: ['id', 'username', 'email', 'avatar'],
+              },
+              {
+                model: User,
+                as: 'user2',
+                attributes: ['id', 'username', 'email', 'avatar'],
+              },
+              {
+                model: Message,
+                as: 'messages',
+                attributes: ['id', 'content', 'sentAt'],
+                limit: 1,
+                order: [['sentAt', 'DESC']],
+              },
+            ],
+          },
+        ],
+      });
+
       // Поиск диалогов пользователя с последним сообщением
       const conversations = await Conversation.findAll({
         where: {
@@ -633,20 +676,22 @@ class UserController {
             model: Message,
             as: 'messages',
             attributes: ['id', 'content', 'sentAt'],
-            limit: 1,
+            // limit: 1,
             order: [['sentAt', 'DESC']],
           },
         ],
+        order: [['messages', 'sentAt', 'DESC']],
       });
 
-      // Формирование результата
-      const contacts = conversations.map((conversation) => {
-        const { user1, user2, messages } = conversation;
+      const pinned = pinnedConversations.map((conversation) => {
+        const { user1, user2, messages } = conversation.conversation;
+        console.log(conversation.conversation);
         const contact = userId == user1.id ? user2 : user1;
         const lastMessage = messages?.length > 0 ? messages[0] : null;
         return {
           id: contact.id,
           username: contact.username,
+          isPinned: true,
           email: contact.email,
           avatar: contact.avatar,
           lastMessage: lastMessage
@@ -659,7 +704,36 @@ class UserController {
         };
       });
 
-      res.json(contacts);
+      // Формирование результата
+      const contacts = conversations.map((conversation) => {
+        const { user1, user2, messages } = conversation;
+        const contact = userId == user1.id ? user2 : user1;
+        const lastMessage = messages?.length > 0 ? messages[0] : null;
+        return {
+          id: contact.id,
+          username: contact.username,
+          isPinned: false,
+          email: contact.email,
+          avatar: contact.avatar,
+          lastMessage: lastMessage
+            ? {
+                id: lastMessage.id,
+                content: lastMessage.content,
+                createdAt: lastMessage.createdAt,
+              }
+            : null,
+        };
+      });
+
+      // Объединение и удаление повторяющихся записей
+      const combined = [...pinned, ...contacts];
+      const uniqueContacts = Array.from(
+        new Set(combined.map((contact) => contact.id))
+      ).map((id) => {
+        return combined.find((contact) => contact.id === id);
+      });
+
+      res.json(uniqueContacts);
     } catch (error) {
       console.error('Ошибка при получении контактов:', error);
       res.status(500).json({ message: 'Внутренняя ошибка сервера' });
@@ -740,6 +814,56 @@ class UserController {
       res.status(500).json({ message: 'Внутренняя ошибка сервера' });
     }
   }
+
+  static async pinConversation(req, res) {
+    try {
+      const { userId, conversationId } = req.body;
+
+      // Удаление диалога
+      const pinnedConversation = await PinnedConversation.create({
+        userId,
+        conversationId,
+      });
+
+      // Проверка, был ли удален диалог
+      if (pinnedConversation === 0) {
+        return res.status(404).json({ message: 'Диалог не найден' });
+      }
+
+      io.emit('conversationUpdated', conversationId);
+
+      res.json({ message: 'Диалог успешно закреплен' });
+    } catch (error) {
+      console.error('Ошибка при закреплении диалога:', error);
+      res.status(500).json({ message: 'Внутренняя ошибка сервера' });
+    }
+  }
+
+  static async unpinConversation(req, res) {
+    try {
+      const { userId, conversationId } = req.body;
+
+      // Удаление диалога
+      const deletedPinnedConversation = await PinnedConversation.destroy({
+        where: {
+          userId,
+          conversationId,
+        },
+      });
+
+      // Проверка, был ли удален диалог
+      if (deletedPinnedConversation === 0) {
+        return res.status(404).json({ message: 'Диалог не найден' });
+      }
+
+      io.emit('conversationUpdated', conversationId);
+
+      res.json({ message: 'Диалог успешно откреплен' });
+    } catch (error) {
+      console.error('Ошибка при откреплении диалога:', error);
+      res.status(500).json({ message: 'Внутренняя ошибка сервера' });
+    }
+  }
 }
 const PORT = 5000;
 
@@ -760,6 +884,8 @@ app.delete('/conversations/:conversationId', UserController.deleteConversation);
 // app.post('/messages', UserController.sendMessage);
 app.post('/messages2', UserController.sendMessage2);
 app.get('/users/:userId/dialog-contacts', UserController.getDialogContacts);
+app.post('/conversations/pin', UserController.pinConversation);
+app.post('/conversations/unpin', UserController.unpinConversation);
 app.get('/avatar/:filename', (req, res) => {
   const filename = req.params.filename;
   const filePath = path.join(__dirname, 'uploads', filename);

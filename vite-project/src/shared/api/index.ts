@@ -113,3 +113,18 @@ export async function deleteConversation(conversationId: number) {
   const response = await api.delete(`/conversations/${conversationId}`);
   return response.data;
 }
+
+export async function pinConversation(data: {
+  userId: number;
+  conversationId: number;
+}) {
+  const response = await api.post('/conversations/pin', data);
+  return response.data;
+}
+export async function unpinConversation(data: {
+  userId: number;
+  conversationId: number;
+}) {
+  const response = await api.post('/conversations/unpin', data);
+  return response.data;
+}

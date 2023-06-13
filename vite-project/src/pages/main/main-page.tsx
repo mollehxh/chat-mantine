@@ -57,10 +57,13 @@ import {
   conversationClicked,
   deleteConversationClicked,
   messageValueChanged,
+  pinConversationClicked,
   searchValueChanged,
   sendMessageClicked,
+  unpinConversationClicked,
 } from './model';
 import { useList } from 'effector-react';
+import { IconPinnedOff } from '@tabler/icons-react';
 
 function Aform() {
   const session = useUnit($user);
@@ -127,6 +130,7 @@ function AppShellDemo() {
       >
         {session && id !== session.id && (
           <User
+            isPinned={false}
             name={username}
             avatar={avatar}
             selected={interlocutor?.id == id}
@@ -137,7 +141,7 @@ function AppShellDemo() {
     keys: [interlocutor],
   });
   const conversations = useList($conversations, {
-    fn: ({ id, avatar, username, lastMessage }: any) => (
+    fn: ({ id, avatar, username, isPinned, lastMessage }: any) => (
       <span
         onClick={() => {
           conversationClicked(String(id));
@@ -146,6 +150,7 @@ function AppShellDemo() {
       >
         {session && id !== session.id && (
           <User
+            isPinned={isPinned}
             name={username}
             avatar={avatar}
             sub={lastMessage.content}
@@ -334,11 +339,23 @@ function AppShellDemo() {
                     </Menu.Target>
 
                     <Menu.Dropdown>
-                      <Menu.Item icon={<IconPin size={14} />}>
-                        Закрепить
-                      </Menu.Item>
-                      <Menu.Item color="red" icon={<IconHandStop size={14} />}>
-                        Заблокировать
+                      <Menu.Item
+                        onClick={() => {
+                          currentConversation.isPinned
+                            ? unpinConversationClicked()
+                            : pinConversationClicked();
+                        }}
+                        icon={
+                          currentConversation.isPinned ? (
+                            <IconPinnedOff size={14} />
+                          ) : (
+                            <IconPin size={14} />
+                          )
+                        }
+                      >
+                        {currentConversation.isPinned
+                          ? 'Открепить'
+                          : 'Закрепить'}
                       </Menu.Item>
                       <Menu.Item
                         color="red"
@@ -429,14 +446,14 @@ export function User({
   sub,
   avatar,
   online,
-  right,
+  isPinned,
   selected,
 }: {
   name?: any;
   sub?: any;
   avatar: any;
   online?: boolean;
-  right?: any;
+  isPinned: boolean;
   selected?: boolean;
 }) {
   const theme = useMantineTheme();
@@ -490,7 +507,9 @@ export function User({
           </Text>
         </Box>
 
-        <IconPin color={selected ? '#fff' : 'black'} />
+        {isPinned && (
+          <IconPin color={selected ? '#fff' : theme.colors.gray[6]} />
+        )}
       </Group>
     </UnstyledButton>
   );

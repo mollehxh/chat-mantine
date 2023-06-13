@@ -41,6 +41,10 @@ sample({
     modals.openConfirmModal({
       title: 'Вы точно хотите выйти из аккаунта?',
       labels: { confirm: 'Выйти', cancel: 'Отменить' },
+      overlayProps: {
+        opacity: 0.55,
+        blur: 3,
+      },
       onConfirm: () => signOutConfirmed(),
       confirmProps: { color: 'red' },
       centered: true,

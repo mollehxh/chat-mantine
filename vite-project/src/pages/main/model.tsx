@@ -8,8 +8,10 @@ import {
   deleteConversation,
   getConversationById,
   getConversations,
+  pinConversation,
   searchUsers,
   sendMessage,
+  unpinConversation,
 } from '../../shared/api';
 import { debug, reset } from 'patronum';
 import { createSocket } from '../../shared/lib/create-socket';
@@ -26,6 +28,7 @@ export const authorizedRoute = chainAuthorized(currentRoute, {
 const socket = createSocket('http://localhost:5000');
 const msgRecived = socket.on<any>('msg');
 const conversationDeleted = socket.on<any>('conversationDeleted');
+const conversationUpdated = socket.on<any>('conversationUpdated');
 const connect = socket.emit<string>('connect');
 
 sample({
@@ -41,12 +44,16 @@ export const sendMessageClicked = createEvent();
 export const searchValueChanged = createEvent<string>();
 export const conversationClicked = createEvent<string>();
 export const deleteConversationClicked = createEvent<number>();
+export const pinConversationClicked = createEvent();
+export const unpinConversationClicked = createEvent();
 
 const searchUsersFx = createEffect(searchUsers);
 const getConversationsFx = createEffect(getConversations);
 const getConversationByIdFx = createEffect(getConversationById);
 const sendMessageFx = createEffect(sendMessage);
 const deleteConversationFx = createEffect(deleteConversation);
+const pinConversationFx = createEffect(pinConversation);
+const unpinConversationFx = createEffect(unpinConversation);
 
 export const $messageValue = createStore('');
 export const $searchValue = createStore('');
@@ -81,11 +88,37 @@ export const $interlocutor = $selectedConversation.map((conversation) => {
 // });
 
 sample({
+  clock: pinConversationClicked,
+  source: { user: $user, currentConversation: $selectedConversation },
+  fn: ({ user, currentConversation }) => {
+    return {
+      userId: user!.id,
+      conversationId: currentConversation.id,
+    };
+  },
+  target: pinConversationFx,
+});
+sample({
+  clock: unpinConversationClicked,
+  source: { user: $user, currentConversation: $selectedConversation },
+  fn: ({ user, currentConversation }) => {
+    return {
+      userId: user!.id,
+      conversationId: currentConversation.id,
+    };
+  },
+  target: unpinConversationFx,
+});
+
+sample({
   clock: deleteConversationClicked,
   fn: (id) => {
     modals.openConfirmModal({
       title: 'Вы точно хотите удалить диалог?',
-
+      overlayProps: {
+        opacity: 0.55,
+        blur: 3,
+      },
       labels: { confirm: 'Удалить', cancel: 'Отменить' },
       onConfirm: () => deleteConversationFx(id),
       confirmProps: { color: 'red' },
@@ -137,7 +170,12 @@ sample({
 });
 
 sample({
-  clock: [authorizedRoute.opened, msgRecived, conversationDeleted],
+  clock: [
+    authorizedRoute.opened,
+    msgRecived,
+    conversationDeleted,
+    conversationUpdated,
+  ],
   source: $user,
   filter: Boolean,
   fn: ({ id }) => String(id),
